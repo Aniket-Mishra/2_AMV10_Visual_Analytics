@@ -8,6 +8,10 @@ from typing import List, Dict, Any, Union, Tuple
 def get_column(df: pd.DataFrame, column: str) -> np.ndarray:
     return df[column].values
 
+def get_column_unique_values(df: pd.DataFrame, column: str) -> pd.Series:
+    df = df[column].dropna().unique()
+    return sorted(df)
+
 
 def get_column_value_counts(df: pd.DataFrame, column: str, normalize: bool = False) -> pd.Series:
     return df[column].value_counts(normalize=normalize)
