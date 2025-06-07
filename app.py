@@ -1,5 +1,5 @@
 import dash
-from dash import Dash, html, dcc, Input, Output, State
+from dash import Dash, html, dcc, Input, Output, State, callback_context
 import dash_bootstrap_components as dbc
 import pandas as pd
 from common_functions import * 
@@ -181,25 +181,6 @@ app.layout = html.Div([
 ])
 
 
-# Reset filters once the button is pressed
-@app.callback(
-    Output("director_dropdown", "value"),
-    Output("actor_dropdown", "value"),
-    Output("genre_dropdown", "value"),
-    Output("language_dropdown", "value"),
-    Output("release_year_slider", "value"),
-    Output("movie_rating_slider", "value"),
-    Output("movie_rating_count_slider", "value"),
-    Input("reset_filters", "n_clicks"),
-    prevent_initial_call=True
-)
-def reset_filters(n_clicks):
-    year_min_max = get_column_min_max(df_movies, "release_year")
-    year_min = year_min_max['min_value']
-    year_max = year_min_max['max_value']
-    
-    return None, None, None, None, [year_min, year_max], [0.0, 5.0], [0]
-
 
 # Update graphs based on the filters, after pressing the apply filter button
 @app.callback(
@@ -298,6 +279,57 @@ def update_genre_graph(n_clicks, directors, actors, genres, languages, year_rang
     )
 
     return fig_genres, fig_directors, fig_actors, fig_movies
+
+
+# Update filters based on clickData from graphs, as well as on the reset button
+@app.callback(
+    Output("director_dropdown", "value"),
+    Output("actor_dropdown", "value"),
+    Output("genre_dropdown", "value"),
+    Output("language_dropdown", "value"),
+    Output("release_year_slider", "value"),
+    Output("movie_rating_slider", "value"),
+    Output("movie_rating_count_slider", "value"),
+    Input("reset_filters", "n_clicks"),
+    Input('graph_genres', 'clickData'),
+    Input('graph_directors', 'clickData'),
+    Input('graph_actors', 'clickData'),
+    State("director_dropdown", "value"),
+    State("actor_dropdown", "value"),
+    State("genre_dropdown", "value"),
+    prevent_initial_call=True
+)
+def update_filters(reset_clicks, click_genre, click_director, click_actor,
+                   current_directors, current_actors, current_genres):
+    ctx = callback_context
+    triggered = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    # Default values
+    current_directors = current_directors or []
+    current_actors = current_actors or []
+    current_genres = current_genres or []
+
+    # On button press, reset everything
+    if triggered == 'reset_filters':
+        return None, None, None, None, [year_min, year_max], [0.0, 5.0], [0]
+
+    elif triggered == 'graph_genres' and click_genre:
+        clicked_genre = click_genre['points'][0]['x']
+        if clicked_genre not in current_genres:
+            current_genres = current_genres + [clicked_genre]
+
+    elif triggered == 'graph_directors' and click_director:
+        clicked_director = click_director['points'][0]['x']
+        if clicked_director not in current_directors:
+            current_directors = current_directors + [clicked_director]
+
+    elif triggered == 'graph_actors' and click_actor:
+        clicked_actor = click_actor['points'][0]['x']
+        if clicked_actor not in current_actors:
+            current_actors = current_actors + [clicked_actor]
+
+    # If not reset (through the button), just return updated filters with the new selection
+    return current_directors, current_actors, current_genres, None, dash.no_update, dash.no_update, dash.no_update
 
 # Run the app
 if __name__ == "__main__":
