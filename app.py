@@ -5,7 +5,7 @@ import pandas as pd
 from common_functions import * 
 
 # get data
-df_movies = pd.read_parquet('processed_data/movies_data_updated.parquet')
+df_movies = pd.read_parquet('processed_data/movies_filtered_cleaned.parquet')
 
 # get min and max year for slider
 year_min_max = get_column_min_max(df_movies, 'release_year')
@@ -14,7 +14,7 @@ year_max = year_min_max['max_value']
 
 # get max vote count for slider
 vote_count_min_max = get_column_min_max(df_movies, 'vote_count')
-vote_count_max = year_min_max['max_value']
+vote_count_max = vote_count_min_max['max_value']
 
 # get list of directors
 directors = get_column_unique_values(df_movies, 'director')
@@ -36,6 +36,7 @@ app.title = "Movie Recommendations"
 
 # layout page 1 (movie analysis)
 app.layout = html.Div([
+    
     
     # navbar (for user and going to second page)
     dbc.NavbarSimple(
@@ -329,7 +330,7 @@ def update_filters(reset_clicks, click_genre, click_director, click_actor,
             current_actors = current_actors + [clicked_actor]
 
     # If not reset (through the button), just return updated filters with the new selection
-    return current_directors, current_actors, current_genres, None, dash.no_update, dash.no_update, dash.no_update
+    return current_directors, current_actors, current_genres, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
 # Run the app
 if __name__ == "__main__":
