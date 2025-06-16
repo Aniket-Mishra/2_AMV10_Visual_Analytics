@@ -3,9 +3,22 @@ from dash import Dash, html, dcc, Input, Output, State, callback_context
 import dash_bootstrap_components as dbc
 import pandas as pd
 from common_functions import * 
+import json
 
 # get data
-df_movies = pd.read_parquet('processed_data/movies_filtered_cleaned.parquet')
+df_movies = pd.read_parquet("data/1_movies_data_for_app.parquet")
+df_users = pd.read_parquet("data/all_users_stats_with_clusters.parquet")
+df_ratings = pd.read_parquet("data/processed_df_ratings_filtered.parquet")
+
+# and topic data
+with open('data/topic_words.json', 'r') as f:
+    topic_dicts = json.load(f)
+    topic_words = topic_dicts['overview_topic_words']
+    topic_words = {int(k): v for k, v in topic_words.items()}
+    tag_topic_words = topic_dicts['tag_topic_words']
+    tag_topic_words = {int(k): v for k, v in tag_topic_words.items()}
+    keywords_topic_words = topic_dicts['keywords_topic_words']
+    keywords_topic_words = {int(k): v for k, v in keywords_topic_words.items()}
 
 # get min and max year for slider
 year_min_max = get_column_min_max(df_movies, 'release_year')
@@ -18,21 +31,31 @@ vote_count_max = vote_count_min_max['max_value']
 
 # get list of directors
 directors = get_column_unique_values(df_movies, 'director')
+director2id = {director: idx for idx, director in enumerate(sorted(directors))}
+id2director = {idx: director for director, idx in director2id.items()}
 
 # get list of lead actors
 lead_actors = get_column_unique_values(df_movies, 'lead_actor')
+actor2id = {actor: idx for idx, actor in enumerate(sorted(lead_actors))}
+id2actor = {idx: actor for actor, idx in actor2id.items()}
 
 # get list of genres
 main_genres = get_column_unique_values(df_movies, 'main_genre')
+all_genres_from_list = set(g for genres in df_movies['genre_list'] for g in genres)
+all_genres_from_main = set(main_genres)
+all_genres = all_genres_from_list | all_genres_from_main
+genre2id = {genre: idx for idx, genre in enumerate(sorted(all_genres))}
+id2genre = {idx: genre for genre, idx in genre2id.items()}
 
 # get list of original langueges
 original_languages = get_column_unique_values(df_movies, 'original_language')
 
+overview_topic_cols, tag_topic_cols, keywords_topic_cols, core_num_columns = get_core_num_columns(df_movies)
 
 
 # actual app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-app.title = "Movie Recommendations"
+app.title = "MovieLens: MRAR"
 
 # layout page 1 (movie analysis)
 app.layout = html.Div([
@@ -41,16 +64,14 @@ app.layout = html.Div([
     # navbar (for user and going to second page)
     dbc.NavbarSimple(
         children=[
-            dbc.Button("Recommendations", color="secondary", href="#", disabled=True, 
-                       style={'width': '150px', 'margin-right': '10px'}),
             dcc.Dropdown(
-                id='user-dropdown',
-                options=[{'label': f'User {i}', 'value': f'user_{i}'} for i in range(1, 3)],
-                value='user_1',
+                id='user_dropdown',
+                options=[{'label': f'User {i}', 'value': f'user_{i}'} for i in range(1, 5)],
+                value='user_4',
                 style={'width': '150px'}
             )
         ],
-        brand="Movie Rating Analysis",
+        brand="MovieLens: Movie Rating Analysis and Recommendation",
         color="primary",
         dark=True,
         className="mb-4"
@@ -131,9 +152,11 @@ app.layout = html.Div([
                 dbc.Button("Reset Filters", id="reset_filters", color="primary", className="mt-2", style={"marginLeft": "10px"})
             ], width=3),
 
-            # graphs
+            # analysis part
             dbc.Col([
-                # ordered in a 2 x 2 grid
+                html.H3("Movie Rating Analysis", className="mb-4"),
+
+                # graphs are ordered in a 2 x 2 grid
                 dbc.Row([
                     dbc.Col(dcc.Graph(
                         id='graph_genres',
@@ -175,7 +198,33 @@ app.layout = html.Div([
                         )),
                             width=6),
                 ])
-            ], width=9)
+            ], width=9),
+
+            # recommendation part
+            html.H3("Movie Recommendation", className="mb-4"),
+
+            # ordered in a 1 x 3 grid
+            dbc.Row([
+                dbc.Col(dcc.Graph(
+                    id="graph_cluster"
+                    ), 
+                    width=12)
+            ]),
+
+            dbc.Row([
+                dbc.Col(dcc.Graph(
+                    id="graph_recs"), 
+                    width=12)
+            ]),
+
+            dbc.Row([
+                dbc.Col(dcc.Graph(
+                    id="graph_watched"), 
+                    width=12)
+            ]),
+
+            # for the users top recommended movies
+            html.Div(id="recommended_movies_box", className="mt-4", style={"whiteSpace": "pre-wrap"}),
 
         ])
     ], fluid=True)
@@ -199,29 +248,7 @@ app.layout = html.Div([
     State("movie_rating_count_slider", "value")
 )
 def update_genre_graph(n_clicks, directors, actors, genres, languages, year_range, rating_range, vote_count_range):
-    df_filtered = df_movies.copy()
-    
-    # Apply filters to directors, actors, genres and original languages
-    if directors:
-        df_filtered = df_filtered[df_filtered["director"].isin(directors)]
-    if actors:
-        df_filtered = df_filtered[df_filtered["lead_actor"].isin(actors)]
-    if genres:
-        df_filtered = df_filtered[df_filtered["main_genre"].isin(genres)]
-    if languages:
-        df_filtered = df_filtered[df_filtered["original_language"].isin(languages)]
-    
-    # Apply filters on average votes and release year
-    df_filtered = df_filtered[
-        (df_filtered["release_year"] >= year_range[0]) & 
-        (df_filtered["release_year"] <= year_range[1]) & 
-        (df_filtered["vote_average"] >= rating_range[0]) & 
-        (df_filtered["vote_average"] <= rating_range[1])
-    ]
-
-    # Apply filters on minimum number of votes
-    min_votes = vote_count_range[0] if vote_count_range else 0
-    df_filtered = df_filtered[df_filtered["vote_count"] >= min_votes]
+    df_filtered = get_filtered_movies(df_movies, directors, actors, genres, languages, year_range, rating_range, vote_count_range)
 
     # Get the data for both graphs
     genre_avg = get_grouped_mean(df_filtered, "main_genre", "vote_average")
@@ -331,6 +358,92 @@ def update_filters(reset_clicks, click_genre, click_director, click_actor,
 
     # If not reset (through the button), just return updated filters with the new selection
     return current_directors, current_actors, current_genres, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+
+# Provide the selected users top movies (from the dropdown menu)
+# Using the filtered selections
+@app.callback(
+    Output("graph_cluster", "figure"),
+    Output("graph_recs", "figure"),
+    Output("graph_watched", "figure"),
+    Output("recommended_movies_box", "children"),
+    Input("user_dropdown", "value"),
+    Input("apply_filters", "n_clicks"),
+    State("director_dropdown", "value"),
+    State("actor_dropdown", "value"),
+    State("genre_dropdown", "value"),
+    State("language_dropdown", "value"),
+    State("release_year_slider", "value"),
+    State("movie_rating_slider", "value"),
+    State("movie_rating_count_slider", "value")
+)
+def generate_recommendations(user_id_full, n_clicks,
+                             directors, actors, genres, languages,
+                             year_range, rating_range, vote_count_range):
+    
+    # Get user number in the correct format ('user_x' to x)
+    user_id = int(user_id_full.split('_')[1])
+
+    # Filter data
+    df_filtered = get_filtered_movies(df_movies, directors, actors, genres, languages, year_range, rating_range, vote_count_range)
+
+    # Get selected genres. If none are selected, it will use ALL genres
+    if(not genres):
+        genres = main_genres
+
+    selected_genres = [genre2id[g] for g in genres] if genres else []
+    filtered_pool = get_movie_pool(df_filtered, genre_ids=selected_genres)
+
+    recs = recommend_movies_for_user(
+        user_id=user_id,
+        filtered_df=filtered_pool,
+        df_ratings=df_ratings,
+        df_users=df_users,
+        n_recs=5,
+        explain=True,
+        overview_topic_cols=overview_topic_cols,
+        topic_words=topic_words,
+        tag_topic_cols=tag_topic_cols,
+        tag_topic_words=tag_topic_words
+    )
+
+    # Get the special plot needed for the scatter and bar charts
+    df_plot = get_plot_df(df_ratings, df_filtered, user_id, filtered_pool, recs)
+
+    # Movie cluster graph
+    fig_cluster = create_cluster_scatter_plot(
+        df=df_filtered,
+        x='pca_1',
+        y='pca_2',
+        color='movie_cluster',
+        title='Movie Clusters in PCA Space'
+    )
+    
+    # Recommended movies in the cluster graph
+    fig_recs = create_recomended_scatter_plot(
+        df = df_plot,
+        x='pca_1', 
+        y='pca_2',
+        color='status',
+        symbol='status',
+        size='rating',
+        title='Watched & Recommended Movies for User 4 in Feature Space'
+    )
+
+    # Watched vs recommended chart
+    fig_watched = create_bar_recs_plot(
+        df = df_plot,
+        x='main_genre', 
+        y='rating', 
+        color='status',
+        title='Watched vs Recommended: Average Rating per Genre'
+    )
+
+    recommendations_card = html.Pre("\n".join([f"Recommended: {rec['title']}\nWhy: {rec['explanation']}\n" for rec in recs]))
+
+    return fig_cluster, fig_recs, fig_watched, recommendations_card
+
+
 
 # Run the app
 if __name__ == "__main__":

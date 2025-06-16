@@ -1,9 +1,46 @@
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import plotly.express as px
 from plotly.subplots import make_subplots
 from typing import List, Dict, Any, Union, Tuple
 
+
+def get_filtered_movies(
+        df: pd.DataFrame,
+        directors,
+        actors,
+        genres,
+        languages,
+        year_range,
+        rating_range,
+        vote_count_range
+):
+    df_filtered = df.copy()
+    
+    # Apply filters to directors, actors, genres and original languages
+    if directors:
+        df_filtered = df_filtered[df_filtered["director"].isin(directors)]
+    if actors:
+        df_filtered = df_filtered[df_filtered["lead_actor"].isin(actors)]
+    if genres:
+        df_filtered = df_filtered[df_filtered["main_genre"].isin(genres)]
+    if languages:
+        df_filtered = df_filtered[df_filtered["original_language"].isin(languages)]
+    
+    # Apply filters on average votes and release year
+    df_filtered = df_filtered[
+        (df_filtered["release_year"] >= year_range[0]) & 
+        (df_filtered["release_year"] <= year_range[1]) & 
+        (df_filtered["vote_average"] >= rating_range[0]) & 
+        (df_filtered["vote_average"] <= rating_range[1])
+    ]
+
+    # Apply filters on minimum number of votes
+    min_votes = vote_count_range[0] if vote_count_range else 0
+    df_filtered = df_filtered[df_filtered["vote_count"] >= min_votes]
+
+    return df_filtered
 
 def get_column(df: pd.DataFrame, column: str) -> np.ndarray:
     return df[column].values
@@ -81,7 +118,38 @@ def get_distribution_data(df: pd.DataFrame, column: str, bins: Union[int, List[U
         'count': counts
     })
 
+def get_core_num_columns(df: pd.DataFrame):
+    core_num_columns = [
+    'popularity',
+    'vote_average',
+    'vote_count',
+    'critical_success',
+    'runtime_bin_id',
+    'release_decade',
+    # 'release_year',
+    "main_genre_id"
 
+    ] # + [col for col in df_movies.columns if col.startswith('main_genre_')]
+    overview_topic_cols = [col for col in df.columns if col.startswith("overview_topic_")]
+    tag_topic_cols = [col for col in df.columns if col.startswith("tag_topic_")]
+    keywords_topic_cols = [col for col in df.columns if col.startswith("keyword_topic_")]
+    core_num_columns += [col for col in df.columns if col.startswith('runtime_bin_')]
+
+    core_num_columns += overview_topic_cols
+    # core_num_columns += tag_topic_cols
+    core_num_columns += keywords_topic_cols
+
+    core_num_columns += [
+        'lead_actor_popularity',
+        'director_popularity'
+    ]
+
+    core_num_columns += [
+        'director_cluster', 
+        'actor_cluster',
+    ]
+
+    return overview_topic_cols, tag_topic_cols, keywords_topic_cols, core_num_columns
 
 def get_correlation_matrix(df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
     numeric_df = df[columns].select_dtypes(include=np.number)
@@ -113,6 +181,135 @@ def get_top_n_values(df: pd.DataFrame, column: str, n: int = 10, by_column: str 
     else:
         return df[column].value_counts().nlargest(n).reset_index(name='count')
     
+def get_movie_pool(filtered_df, genre_ids=None, year_range=None, director_ids=None):
+    df = filtered_df
+    if genre_ids is not None:
+        df = df[df['main_genre_id'].isin(genre_ids)]
+    if year_range is not None:
+        df = df[(df['release_year'] >= year_range[0]) & (df['release_year'] <= year_range[1])]
+    if director_ids is not None:
+        df = df[df['director_id'].isin(director_ids)]
+    return df
+
+def recommend_movies_for_user(
+    user_id,
+    filtered_df,
+    df_ratings,
+    df_users,
+    n_recs=5,
+    explain=True,
+    overview_topic_cols=None,
+    topic_words=None,
+    tag_topic_cols=None,
+    tag_topic_words=None,
+):
+    seen = df_ratings[df_ratings['userId'] == user_id]['movieId'].tolist()
+    pool = filtered_df[~filtered_df['movieId'].isin(seen)].copy()
+    if pool.empty:
+        return []
+
+    user_row = df_users[df_users['userId'] == user_id]
+    user_top_genres = [user_row['top_genre_1_id'].values[0], user_row['top_genre_2_id'].values[0]]
+
+    pool['score'] = 0
+    pool.loc[pool['main_genre_id'].isin(user_top_genres), 'score'] += 1
+    if 'movie_cluster' in pool.columns and 'user_cluster' in user_row.columns:
+        pool.loc[pool['movie_cluster'] == user_row['user_cluster'].values[0], 'score'] += 1
+    pool['score'] += pool['popularity_score'].rank(pct=True)
+    pool['score'] += pool['critical_success'].rank(pct=True)
+    pool['score'] += pool['vote_average'].rank(pct=True)
+
+    pool = pool.sort_values('score', ascending=False)
+    recs = pool.head(n_recs)
+
+    explanations = []
+    for _, row in recs.iterrows():
+        why = []
+        if row['main_genre_id'] in user_top_genres:
+            why.append(f"Matches your favorite genre ({row['main_genre']})")
+        if 'movie_cluster' in pool.columns and row['movie_cluster'] == user_row['user_cluster'].values[0]:
+            why.append(f"In your preferred cluster (based on similar movies)")
+        if row['popularity_score'] > pool['popularity_score'].median():
+            why.append("Popular among other users")
+        if row['critical_success'] > pool['critical_success'].median():
+            why.append("Critically acclaimed")
+        # Top topics/keywords/themes
+        topic_strs = []
+        if overview_topic_cols is not None and topic_words is not None:
+            theme_words = get_top_topic_words(row, overview_topic_cols, topic_words, n=2)
+            if theme_words:
+                topic_strs.append("Overview: " + theme_words)
+        else:
+            print(overview_topic_cols)
+        if tag_topic_cols is not None and tag_topic_words is not None:
+            tag_words = get_top_topic_words(row, tag_topic_cols, tag_topic_words, n=2)
+            if tag_words:
+                topic_strs.append("Tags: " + tag_words)
+        else:
+            print(tag_topic_cols)
+        if topic_strs:
+            why.append("Notable themes: " + " | ".join(topic_strs))
+        explanations.append({
+            "movieId": row['movieId'],
+            "title": row['title'],
+            "explanation": "; ".join(why)
+        })
+
+    if explain:
+        return explanations
+    else:
+        return recs[['movieId', 'title']]
+
+def get_top_topic_words(row, topic_cols, topic_words, n=2):
+    """Return the most salient topics/words for this row."""
+    # Get the topic indices sorted by strength
+    topic_strengths = [(i, row[topic_col]) for i, topic_col in enumerate(topic_cols)]
+    topic_strengths.sort(key=lambda x: x[1], reverse=True)
+    top_indices = [idx for idx, _ in topic_strengths[:n]]
+    words = []
+    for idx in top_indices:
+        words.extend(topic_words.get(idx, []))
+    return ', '.join(words[:8])
+
+def get_plot_df(
+        df_ratings: pd.DataFrame,
+        df_filtered: pd.DataFrame,
+        user_id: int,
+        filtered_pool,
+        recs
+):
+
+    watched = df_ratings[df_ratings['userId'] == user_id][['movieId', 'rating']]
+    watched = watched.loc[watched["movieId"].isin(df_filtered["movieId"])]
+    watched = watched.merge(filtered_pool[['movieId', 'title', 'main_genre', 'pca_1', 'pca_2', 'movie_cluster']], on='movieId', how='inner')
+    watched['status'] = 'Watched'
+
+    recommended_ids = [rec['movieId'] for rec in recs]
+    recommended = filtered_pool[filtered_pool['movieId'].isin(recommended_ids)].copy()
+    recommended['status'] = 'Recommended'
+    recommended['rating'] = recommended["vote_average"].values
+
+    plot_df = pd.concat([watched, recommended], ignore_index=True)
+
+
+    plot_df = pd.concat([watched, recommended], ignore_index=True)
+    # Optionally, add a new column for easier color/symbol mapping
+    plot_df['status'] = plot_df['status'].astype(str)
+
+    PLOT_COLUMNS = [
+        'movieId', 'title', 'main_genre', 'rating', 'status', 
+        'pca_1', 'pca_2', 'movie_cluster'
+    ]
+    plot_df = plot_df[PLOT_COLUMNS]
+
+    plot_columns = [
+    'movieId', 'title', 'main_genre', 'rating', 'status', 
+    'pca_1', 'pca_2', 'movie_cluster'
+    ]
+
+    plot_df_for_vis = plot_df[plot_columns]
+
+    return plot_df_for_vis
 
 def create_scatter_matrix(
     df: pd.DataFrame,
@@ -428,4 +625,64 @@ def create_radial_chart(
         title_x=0.5,
         legend=dict(x=1.05, y=1, bgcolor="rgba(255,255,255,0.8)")
     )
+    return fig
+
+def create_cluster_scatter_plot(
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    color: str,
+    title: str
+):
+    fig = px.scatter(
+        df, x=x, y=y,
+        color=color,
+        hover_data=['title', 'main_genre', 'director', 'lead_actor', 'vote_average', 'popularity_score'],
+        title=title
+        )
+    
+    return fig
+
+def create_recomended_scatter_plot(
+        df: pd.DataFrame,
+        x: str,
+        y: str,
+        color: str,
+        symbol: str,
+        size: str,
+        title: str
+):
+    fig = px.scatter(
+        df,
+        x=x, 
+        y=y,
+        color=color,
+        symbol=symbol,
+        size=size,
+        hover_data=['title', 'main_genre', 'rating', 'movie_cluster'],
+        title=title
+    )
+
+    return fig
+
+def create_bar_recs_plot(
+        df: pd.DataFrame,
+        x: str,
+        y: str,
+        color: str,
+        title: str
+
+):
+    bar_df = df.copy()
+    bar_df['User Rated'] = bar_df['status'] == 'Watched'
+
+    fig = px.bar(
+        bar_df,
+        x=x, 
+        y=y, 
+        color=color,
+        barmode='group',
+        title=title
+    )
+
     return fig
