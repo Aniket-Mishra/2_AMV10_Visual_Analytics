@@ -1,0 +1,18 @@
+/* WORKING PART KINDA */
+.Select-menu-outer, .css-11unzgr {
+    max-height: 250px !important;
+    overflow-y: auto !important;
+}
+
+.Select--multi .Select-value { 
+    display: none !important;
+}
+.Select--multi .Select-value:nth-child(1),
+.Select--multi .Select-value:nth-child(2) {
+    display: inline-block !important;
+}
+
+.card-header:hover {
+    background-color: #e9ecef;
+    transition: background 0.2s;
+}
