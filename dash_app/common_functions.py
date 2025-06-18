@@ -273,6 +273,13 @@ def create_scatter_matrix(
     else:
         custom_data_values = None
         hovertemplate_extra = ""
+
+    # Color palette for cluster/labels
+    palette = [
+        "#B388FF", "#64FFDA", "#FF80AB", "#FFD740",
+        "#40C4FF", "#69F0AE", "#FFAB40", "#FF5252"
+    ]
+
     for i in range(num_cols):
         for j in range(num_cols):
             row_idx, col_idx = i + 1, j + 1
@@ -281,7 +288,7 @@ def create_scatter_matrix(
                     go.Histogram(
                         x=df_plot[numeric_only_cols[i]],
                         name=numeric_only_cols[i],
-                        marker_color="#1f77b4",
+                        marker_color="#B388FF",   # Use light purple for hist
                         hovertemplate=f"<b>{numeric_only_cols[i]}:</b> %{{x}}<br><b>Count:</b> %{{y}}<extra></extra>",
                     ),
                     row=row_idx,
@@ -292,15 +299,15 @@ def create_scatter_matrix(
             else:
                 colors = None
                 if color_column and color_column in df_plot.columns:
-                    unique_colors = df_plot[color_column].unique()
-                    color_map = {val: f"hsl({np.random.randint(0, 360)}, 50%, 50%)" for val in unique_colors}
+                    unique_vals = list(df_plot[color_column].unique())
+                    color_map = {val: palette[idx % len(palette)] for idx, val in enumerate(unique_vals)}
                     colors = df_plot[color_column].map(color_map)
                 fig.add_trace(
                     go.Scattergl(
                         x=df_plot[numeric_only_cols[j]],
                         y=df_plot[numeric_only_cols[i]],
                         mode="markers",
-                        marker=dict(size=5, opacity=0.6, color=colors, line=dict(width=0.5, color="DarkSlateGrey")),
+                        marker=dict(size=5, opacity=0.7, color=colors, line=dict(width=0.5, color="DarkSlateGrey")),
                         name=f"{numeric_only_cols[i]} vs {numeric_only_cols[j]}",
                         hovertemplate=(
                             f"<b>{numeric_only_cols[j]}:</b> %{{x}}<br>"
@@ -321,19 +328,15 @@ def create_scatter_matrix(
         height=num_cols * 300,
         width=num_cols * 300,
         showlegend=True,
-        template="plotly_white",
-        font=dict(family="Arial", size=10, color="#7f7f7f"),
+        template="plotly_dark",
+        plot_bgcolor="rgba(33,33,33,1)",
+        paper_bgcolor="rgba(33,33,33,1)",
+        font=dict(family="Roboto, Arial", color="#FAFAFA"),
         title_x=0.5,
         hovermode="closest",
+        dragmode="select",
     )
-    fig.update_layout(dragmode="select")
-    fig.update_layout(
-    template="plotly_dark",  # instead of "plotly_white"
-    plot_bgcolor="rgba(33,33,33,1)",  # match --md-bg
-    paper_bgcolor="rgba(33,33,33,1)",
-    font=dict(family="Roboto, Arial", color="#FAFAFA"),
-)
-
+    return fig
 
 def create_bar_chart(
     df: pd.DataFrame,
@@ -605,18 +608,59 @@ def create_cluster_scatter_plot(
     color: str,
     title: str
 ):
+    if df.empty or x not in df or y not in df or color not in df:
+        # Return empty figure if data is missing
+        return go.Figure(layout=dict(
+            template="plotly_dark",
+            plot_bgcolor="rgba(33,33,33,1)",
+            paper_bgcolor="rgba(33,33,33,1)",
+            font=dict(family="Roboto, Arial", color="#FAFAFA"),
+            annotations=[dict(
+                text="No data to display",
+                x=0.5, y=0.5, xref="paper", yref="paper",
+                showarrow=False, font=dict(size=18, color="#FAFAFA")
+            )]
+        ))
+
+    # Custom vibrant color palette for clusters (extend as needed)
+    cluster_palette = [
+        "#7C4DFF",  # Vibrant Material Purple
+        "#FFD54F",  # Yellow accent for contrast
+        "#00E5FF",  # Cyan
+        "#FF4081",  # Pink accent
+        "#FFC400",  # Amber
+        "#69F0AE",  # Green accent
+        "#FF5252",  # Red accent
+        "#e040fb",  # Blue accent
+        "#C51162",  # Deep Pink
+        "#00B8D4",  # Teal
+    ]
+
+    # If you know the number of unique clusters, extend palette or repeat
+    n_clusters = df[color].nunique()
+    color_sequence = cluster_palette * (n_clusters // len(cluster_palette) + 1)
+
     fig = px.scatter(
-        df, x=x, y=y,
+        df,
+        x=x,
+        y=y,
         color=color,
         hover_data=['title', 'main_genre', 'director', 'lead_actor', 'vote_average', 'popularity_score'],
-        title=title
-        )
-    fig.update_layout(dragmode="select")
+        title=title,
+        color_discrete_sequence=color_sequence[:n_clusters] if df[color].dtype == object else None,
+        # For numeric columns, you can use color_continuous_scale e.g. "Turbo"
+    )
     fig.update_layout(
-    template="plotly_dark",  # instead of "plotly_white"
-    plot_bgcolor="rgba(33,33,33,1)",  # match --md-bg
-    paper_bgcolor="rgba(33,33,33,1)",
-    font=dict(family="Roboto, Arial", color="#FAFAFA"),
+        dragmode="select",
+        template="plotly_dark",
+        plot_bgcolor="rgba(33,33,33,1)",
+        paper_bgcolor="rgba(33,33,33,1)",
+        font=dict(family="Roboto, Arial", color="#FAFAFA"),
+        legend=dict(
+            bgcolor="rgba(40,40,40,0.9)",
+            font=dict(color="#FAFAFA")
+        ),
+        title_x=0.5,
     )
     return fig
 
@@ -665,8 +709,7 @@ def create_bar_recs_plot(
         y=y, 
         color=color,
         barmode='group',
-        title=title,
-        color_discrete_sequence=["#7C4DFF"]
+        title=title
     )
     fig.update_layout(dragmode="select")
     fig.update_layout(
