@@ -719,7 +719,7 @@ def create_bar_recs_plot(
         color=color,
         barmode='group',
         title=title,
-        color_discrete_sequence=["#7e57c2", "#ffab91"]  # <-- Your two custom colors!
+        color_discrete_sequence=["#7e57c2", "#ffab91"]
     )
     fig.update_layout(
         dragmode="select",
@@ -780,7 +780,7 @@ def create_dynamic_radial_chart(
     title: str = "Radial Chart",
     showlegend: bool = False,
     fill: str = "toself",
-    color: str = "#1976d2",
+    color: str = "#651FFF",
     group_col: str = None,
     range_min: float = None,
     range_max: float = None,
@@ -864,7 +864,7 @@ def mini_radial_figure(genres, df):
         data=[go.Barpolar(
             r=counts,
             theta=[g[:12] for g in genres],
-            marker_color=['#1976d2', '#64b5f6', '#90caf9'],
+            marker_color=['#651FFF', '#7C4DFF', '#B388FF'],
             width=[30]*len(counts),
             opacity=0.8
         )]
