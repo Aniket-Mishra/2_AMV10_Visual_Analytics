@@ -673,6 +673,9 @@ def create_recomended_scatter_plot(
         size: str,
         title: str
 ):
+    # Two bright and contrasting shades of purple
+    PURPLE_SEQ = ["#ffab91", "#4a148c"]
+
     fig = px.scatter(
         df,
         x=x, 
@@ -681,16 +684,23 @@ def create_recomended_scatter_plot(
         symbol=symbol,
         size=size,
         hover_data=['title', 'main_genre', 'rating', 'movie_cluster'],
-        title=title
+        title=title,
+        color_discrete_sequence=PURPLE_SEQ  # Use two strong purples
     )
-    fig.update_layout(dragmode="select")
     fig.update_layout(
-    template="plotly_dark",  # instead of "plotly_white"
-    plot_bgcolor="rgba(33,33,33,1)",  # match --md-bg
-    paper_bgcolor="rgba(33,33,33,1)",
-    font=dict(family="Roboto, Arial", color="#FAFAFA"),
+        dragmode="select",
+        template="plotly_dark",
+        plot_bgcolor="rgba(33,33,33,1)",
+        paper_bgcolor="rgba(33,33,33,1)",
+        font=dict(family="Roboto, Arial", color="#FAFAFA"),
+        title_x=0.5,
+        legend=dict(
+            bgcolor="rgba(40,40,40,0.9)",
+            font=dict(color="#FAFAFA")
+        ),
     )
     return fig
+
 
 def create_bar_recs_plot(
         df: pd.DataFrame,
@@ -698,7 +708,6 @@ def create_bar_recs_plot(
         y: str,
         color: str,
         title: str
-
 ):
     bar_df = df.copy()
     bar_df['User Rated'] = bar_df['status'] == 'Watched'
@@ -709,16 +718,23 @@ def create_bar_recs_plot(
         y=y, 
         color=color,
         barmode='group',
-        title=title
+        title=title,
+        color_discrete_sequence=["#7e57c2", "#ffab91"]  # <-- Your two custom colors!
     )
-    fig.update_layout(dragmode="select")
     fig.update_layout(
-    template="plotly_dark",  # instead of "plotly_white"
-    plot_bgcolor="rgba(33,33,33,1)",  # match --md-bg
-    paper_bgcolor="rgba(33,33,33,1)",
-    font=dict(family="Roboto, Arial", color="#FAFAFA"),
+        dragmode="select",
+        template="plotly_dark",
+        plot_bgcolor="rgba(33,33,33,1)",
+        paper_bgcolor="rgba(33,33,33,1)",
+        font=dict(family="Roboto, Arial", color="#FAFAFA"),
+        title_x=0.5,
+        legend=dict(
+            bgcolor="rgba(40,40,40,0.9)",
+            font=dict(color="#FAFAFA")
+        ),
     )
     return fig
+
 
 def create_dynamic_treemap(df: pd.DataFrame, column: str, title: str = None):
     """
