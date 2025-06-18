@@ -3,14 +3,21 @@
 import json
 import pandas as pd
 import dash_bootstrap_components as dbc
-from dash import dcc, html
+from dash import dcc, html, ctx
+from common_functions import *
 
 def load_data():
     df_movies = pd.read_parquet("../data/1_movies_data_for_app.parquet")
     df_users = pd.read_parquet("../data/1_all_users_stats_with_clusters.parquet")
     df_ratings = pd.read_parquet("../data/1_ratings_data_filtered.parquet")
+    df_movies['popularity_score'] = (
+        (df_movies['popularity_score'] - df_movies['popularity_score'].min()) /
+        (df_movies['popularity_score'].max() - df_movies['popularity_score'].min())
+    )
 
     users_for_app = {8547: "Aniket", 265550: "Rose", 276879: "Prof", 270637: "Pakhi"}
+    DEFAULT_USER_ID = list(users_for_app.keys())[0]
+    
 
     with open('../data/topic_words.json', 'r') as f:
         topic_dicts = json.load(f)
@@ -42,34 +49,73 @@ def load_data():
         overview_topic_cols, tag_topic_cols
     )
 
-def build_header(users_for_app, selected_page, selected_stat_type, selected_user):
-    """Reusable navbar/header with navigation and filters."""
+def build_header(users_for_app, selected_page, selected_user):
+    DEFAULT_USER_ID = list(users_for_app.keys())[0]
+    def button_style(is_active):
+        return {
+            "backgroundColor": "#1976d2" if is_active else "#0d47a1",
+            "color": "white",
+            "border": "none",
+            "boxShadow": "none",
+        }
     return dbc.Navbar(
         dbc.Container([
             dbc.Row([
                 dbc.Col(html.H2("Movie Recommendations", className="mb-0 text-white"), width="auto"),
-                dbc.Col(dbc.Button("Movies", id="btn-movies", color="primary", outline=selected_page != "movies", className="mx-1")),
-                dbc.Col(dbc.Button("Recommendations", id="btn-recommendations", color="primary", outline=selected_page != "recommendations", className="mx-1")),
-                dbc.Col([
-                    dcc.Dropdown(
-                        id="stat-type-dropdown",
-                        options=[{"label": "Global Stats", "value": "Global"}, {"label": "User Stats", "value": "User"}],
-                        value=selected_stat_type,
-                        clearable=False,
-                        style={"width": "150px", "display": "inline-block"}
-                    )
-                ], width="auto", className="mx-2"),
+                dbc.Col(
+                    dbc.Button(
+                        "Movies",
+                        id="btn-movies",
+                        color="primary",
+                        className="mx-1" + (" active" if selected_page == "movies" else ""),
+                        n_clicks=0,
+                    ),
+                    width="auto"
+                ),
+                dbc.Col(
+                    dbc.Button(
+                        "Recommendations",
+                        id="btn-recommendations",
+                        className="mx-1" + (" active" if selected_page == "recommendations" else ""),
+                        n_clicks=0,
+                    ),
+                    width="auto"
+                ),
+
                 dbc.Col([
                     dcc.Dropdown(
                         id="user-dropdown",
-                        options=[{"label": name, "value": uid} for uid, name in users_for_app.items()],
-                        value=selected_user,
+                        options=[{"label": users_for_app[k], "value": k} for k in users_for_app],
+                        value=DEFAULT_USER_ID,
                         clearable=False,
                         style={"width": "150px", "display": "inline-block"}
                     )
                 ], width="auto", className="mx-2"),
-                dbc.Col(dbc.Button("Reset Filters", id="btn-reset-filters", color="secondary", className="mx-1")),
-                dbc.Col(dbc.Button("Reset App", id="btn-reset-app", color="danger", className="mx-1")),
+                dbc.Col(
+                    dbc.Button(
+                        "Clear Graphs",
+                        id="clear-selections-btn",
+                        className="mx-1",
+                    ),
+                    width="auto"
+                ),
+                dbc.Col(
+                    dbc.Button(
+                        "Reset Filters",
+                        id="btn-reset-filters",
+                        className="mx-1",
+                    ),
+                    width="auto"
+                ),
+                dbc.Col(
+                    dbc.Button(
+                        "Reset App",
+                        id="btn-reset-app",
+                        color="secondary", 
+                        className="mx-1 btn-reset-app",
+                    ),
+                    width="auto"
+                ),
             ], align="center", className="g-2"),
         ]),
         color="dark",
@@ -115,76 +161,94 @@ def build_kpi_section(
     avg_votes_user_f = round(filtered_df_user_movies['vote_average'].mean(), 2) if n_movies_user_f > 0 else 0
     top3_genres_user_f = filtered_df_user_movies['main_genre'].value_counts().head(3).index.tolist()
 
-    # return dbc.Row([
-    #     dbc.Col(
-    #         dbc.Card([
-    #             dbc.CardHeader("Global Stats (Total)"),
-    #             dbc.CardBody([
-    #                 html.P(f"Movies: {n_movies_global}"),
-    #                 html.P(f"Total Votes: {total_votes_global}"),
-    #                 html.P(f"Average Vote: {avg_votes_global}"),
-    #                 html.P(f"Top 3 Genres: {', '.join(top3_genres_global)}"),
-    #             ])
-    #         ]), width=3
-    #     ),
-    #     dbc.Col(
-    #         dbc.Card([
-    #             dbc.CardHeader("Global Stats (Filtered)"),
-    #             dbc.CardBody([
-    #                 html.P(f"Movies: {n_movies_global_f}"),
-    #                 html.P(f"Total Votes: {total_votes_global_f}"),
-    #                 html.P(f"Average Vote: {avg_votes_global_f}"),
-    #                 html.P(f"Top 3 Genres: {', '.join(top3_genres_global_f)}"),
-    #             ])
-    #         ]), width=3
-    #     ),
-    #     dbc.Col(
-    #         dbc.Card([
-    #             dbc.CardHeader("User Stats (Total)"),
-    #             dbc.CardBody([
-    #                 html.P(f"Movies: {n_movies_user}"),
-    #                 html.P(f"Total Votes: {total_votes_user}"),
-    #                 html.P(f"Average Vote: {avg_votes_user}"),
-    #                 html.P(f"Top 3 Genres: {', '.join(top3_genres_user)}"),
-    #             ])
-    #         ]), width=3
-    #     ),
-    #     dbc.Col(
-    #         dbc.Card([
-    #             dbc.CardHeader("User Stats (Filtered)"),
-    #             dbc.CardBody([
-    #                 html.P(f"Movies: {n_movies_user_f}"),
-    #                 html.P(f"Total Votes: {total_votes_user_f}"),
-    #                 html.P(f"Average Vote: {avg_votes_user_f}"),
-    #                 html.P(f"Top 3 Genres: {', '.join(top3_genres_user_f)}"),
-    #             ])
-    #         ]), width=3
-    #     ),
-    # ], className="mb-4 g-4")
     card_bodies = [
         [
             html.P(f"Movies: {n_movies_global}"),
             html.P(f"Total Votes: {total_votes_global}"),
             html.P(f"Average Vote: {avg_votes_global}"),
             html.P(f"Top 3 Genres: {', '.join(top3_genres_global)}"),
+            dcc.Graph(
+                figure=create_dynamic_radial_chart(
+                    df_movies,
+                    category_col="main_genre",
+                    value_col="movieId",    # Use "count" of movies
+                    agg_func="count",
+                    title="",
+                    showlegend=False,
+                    fill="toself",
+                    color="#1976d2",
+                    selected_categories=top3_genres_global,
+                    range_min=0
+                ),
+                config={'displayModeBar': False},
+                style={'height': '120px'}
+            ),
         ],
         [
             html.P(f"Movies: {n_movies_global_f}"),
             html.P(f"Total Votes: {total_votes_global_f}"),
             html.P(f"Average Vote: {avg_votes_global_f}"),
             html.P(f"Top 3 Genres: {', '.join(top3_genres_global_f)}"),
+            dcc.Graph(
+                figure=create_dynamic_radial_chart(
+                    filtered_df_movies,
+                    category_col="main_genre",
+                    value_col="movieId",
+                    agg_func="count",
+                    title="",
+                    showlegend=False,
+                    fill="toself",
+                    color="#1976d2",
+                    selected_categories=top3_genres_global_f,
+                    range_min=0
+                ),
+                config={'displayModeBar': False},
+                style={'height': '120px'}
+            ),
         ],
         [
             html.P(f"Movies: {n_movies_user}"),
             html.P(f"Total Votes: {total_votes_user}"),
             html.P(f"Average Vote: {avg_votes_user}"),
             html.P(f"Top 3 Genres: {', '.join(top3_genres_user)}"),
+            dcc.Graph(
+                figure=create_dynamic_radial_chart(
+                    df_user_movies,
+                    category_col="main_genre",
+                    value_col="movieId",
+                    agg_func="count",
+                    title="",
+                    showlegend=False,
+                    fill="toself",
+                    color="#1976d2",
+                    selected_categories=top3_genres_user,
+                    range_min=0
+                ),
+                config={'displayModeBar': False},
+                style={'height': '120px'}
+            ),
         ],
         [
             html.P(f"Movies: {n_movies_user_f}"),
             html.P(f"Total Votes: {total_votes_user_f}"),
             html.P(f"Average Vote: {avg_votes_user_f}"),
             html.P(f"Top 3 Genres: {', '.join(top3_genres_user_f)}"),
+            dcc.Graph(
+                figure=create_dynamic_radial_chart(
+                    filtered_df_user_movies,
+                    category_col="main_genre",
+                    value_col="movieId",
+                    agg_func="count",
+                    title="",
+                    showlegend=False,
+                    fill="toself",
+                    color="#1976d2",
+                    selected_categories=top3_genres_user_f,
+                    range_min=0
+                ),
+                config={'displayModeBar': False},
+                style={'height': '120px'}
+            ),
         ],
     ]
 
@@ -230,116 +294,163 @@ def build_kpi_section(
 
 
 def movies_page_layout():
-    """Placeholder for Movies analysis page."""
-    return html.Div([
-        html.H3("Movie Analysis Page"),
-        html.P("Put your Movie analysis charts, plots, and explanations here."),
-        # Future: Insert more filters/graphs here!
-    ])
+    return dbc.Container([
+        dbc.Row([
+            dbc.Col(dcc.Graph(id="graph_genres"), md=6),
+            dbc.Col(dcc.Graph(id="graph_directors"), md=6)
+        ]),
+        dbc.Row([
+            dbc.Col(dcc.Graph(id="graph_actors"), md=6),
+            dbc.Col(dcc.Graph(id="graph_movies"), md=6)
+        ]),
+        # dbc.Row([
+        #     dbc.Col(dcc.Graph(id="graph_radial"), md=12),
+        # ]),
+    ], fluid=True)
 
 def recommendations_page_layout():
-    """Placeholder for Recommendations page."""
-    return html.Div([
-        html.H3("Movie Recommendations Page"),
-        html.P("Put your Recommendation engine outputs and explanations here."),
-        # Future: Insert rec components here!
-    ])
+    return dbc.Container([
+        dbc.Row([
+            dbc.Col(dcc.Graph(id="graph_cluster"), md=12)
+        ]),
+        dbc.Row([
+            dbc.Col(dcc.Graph(id="graph_recs"), md=6),
+            dbc.Col(dcc.Graph(id="graph_watched"), md=6)
+        ]),
+        dbc.Row([
+            dbc.Col(html.Div(id="recommended_movies_box"), md=12)
+        ])
+    ], fluid=True)
     
 def build_filters(
     all_directors, all_actors, all_genres,
     director_value=None, actor_value=None, genre_value=None,
-    rating_range=(0, 5)
+    rating_range=(0, 5),
+    year_range=(1900, 2025), year_value=None,
+    votes_range=(0, 10000), votes_value=None,
 ):
-    return dbc.Row([
-        # --- Director Filter ---
-        dbc.Col([
-            dbc.Row([
-                dbc.Col(html.Label("Directors"), width="auto"),
-                dbc.Col(
-                    [
-                        dbc.Button("Show Selected", id="show-selected-directors-btn", color="secondary", size="sm", className="me-2"),
-                        dbc.Button("Select All", id="select-all-directors", color="info", size="sm"),
-                    ],
-                    width="auto",
-                    style={"textAlign": "right"}
-                ),
-            ], justify="between", align="center", className="mb-1"),
-            dcc.Dropdown(
-                id="director-dropdown",
-                options=[{"label": d, "value": d} for d in sorted(all_directors)],
-                value=director_value if director_value else [],
-                multi=True,
-                placeholder="Select director(s)",
-            ),
-            # NEW: Modal to show all selected directors
-            dbc.Modal([
-                dbc.ModalHeader(dbc.ModalTitle("Selected Directors")),
-                dbc.ModalBody(id="selected-directors-list"),
-            ], id="modal-directors", is_open=False),
-        ], width=3),
+    year_min = int(year_range[0])
+    year_max = int(year_range[1])
+    votes_min = int(votes_range[0])
+    votes_max = int(votes_range[1])
 
-        # --- Actor Filter ---
-        dbc.Col([
-            dbc.Row([
-                dbc.Col(html.Label("Lead Actors"), width="auto"),
-                dbc.Col(
-                    [
-                        dbc.Button("Show Selected", id="show-selected-actors-btn", color="secondary", size="sm", className="me-2"),
-                        dbc.Button("Select All", id="select-all-actors", color="info", size="sm"),
-                    ],
-                    width="auto",
-                    style={"textAlign": "right"}
-                ),
-            ], justify="between", align="center", className="mb-1"),
-            dcc.Dropdown(
-                id="actor-dropdown",
-                options=[{"label": a, "value": a} for a in sorted(all_actors)],
-                value=actor_value if actor_value else [],
-                multi=True,
-                placeholder="Select actor(s)",
-            ),
-            # NEW: Modal to show all selected actors
-            dbc.Modal([
-                dbc.ModalHeader(dbc.ModalTitle("Selected Actors")),
-                dbc.ModalBody(id="selected-actors-list"),
-            ], id="modal-actors", is_open=False),
-        ], width=3),
+    if year_value is None:
+        year_value = [year_range[0], year_range[1]]
+    if votes_value is None:
+        votes_value = [votes_range[0], votes_range[1]]
 
-        # --- Genre Filter ---
-        dbc.Col([
-            dbc.Row([
-                dbc.Col(html.Label("Main Genres"), width="auto"),
-                 dbc.Col(
-                    [
-                        dbc.Button("Show Selected", id="show-selected-genres-btn", color="secondary", size="sm", className="me-2"),
-                        dbc.Button("Select All", id="select-all-genres", color="info", size="sm"),
-                    ],
-                    width="auto",
-                    style={"textAlign": "right"}
+    return dbc.Container([ dbc.Row([
+            # --- Director Filter ---
+            dbc.Col([
+                dbc.Row([
+                    dbc.Col(html.Label("Directors"), width="auto"),
+                    dbc.Col(
+                        [
+                            dbc.Button("Show Selected", id="show-selected-directors-btn", color="secondary", size="sm", className="me-2"),
+                            dbc.Button("Select All", id="select-all-directors", color="info", size="sm"),
+                        ],
+                        width="auto",
+                        style={"textAlign": "right"}
+                    ),
+                ], justify="between", align="center", className="mb-1"),
+                dcc.Dropdown(
+                    id="director-dropdown",
+                    options=[{"label": d, "value": d} for d in sorted(all_directors)],
+                    value=director_value if director_value else [],
+                    multi=True,
+                    placeholder="Select director(s)",
                 ),
-            ], justify="between", align="center", className="mb-1"),
-            dcc.Dropdown(
-                id="genre-dropdown",
-                options=[{"label": g, "value": g} for g in sorted(all_genres)],
-                value=genre_value if genre_value else [],
-                multi=True,
-                placeholder="Select genre(s)",
-            ),
-            # NEW: Modal to show all selected genres
-            dbc.Modal([
-                dbc.ModalHeader(dbc.ModalTitle("Selected Genres")),
-                dbc.ModalBody(id="selected-genres-list"),
-            ], id="modal-genres", is_open=False),
-        ], width=3),
+                dbc.Modal([
+                    dbc.ModalHeader(dbc.ModalTitle("Selected Directors")),
+                    dbc.ModalBody(id="selected-directors-list"),
+                ], id="modal-directors", is_open=False),
+            ], width=3),
 
-        # --- Rating Slider ---
-        dbc.Col([
-            html.Label("Movie Rating"),
-            dcc.RangeSlider(
-                id="rating-slider", min=0, max=5, step=0.5,
-                marks={i / 2: str(i / 2) for i in range(0, 11)},
-                value=rating_range if rating_range else [0, 5],
-                tooltip={"placement": "bottom", "always_visible": False},
-            )
-        ], width=3)
-    ], className="mb-4 g-4")
+            # --- Actor Filter ---
+            dbc.Col([
+                dbc.Row([
+                    dbc.Col(html.Label("Lead Actors"), width="auto"),
+                    dbc.Col(
+                        [
+                            dbc.Button("Show Selected", id="show-selected-actors-btn", color="secondary", size="sm", className="me-2"),
+                            dbc.Button("Select All", id="select-all-actors", color="info", size="sm"),
+                        ],
+                        width="auto",
+                        style={"textAlign": "right"}
+                    ),
+                ], justify="between", align="center", className="mb-1"),
+                dcc.Dropdown(
+                    id="actor-dropdown",
+                    options=[{"label": a, "value": a} for a in sorted(all_actors)],
+                    value=actor_value if actor_value else [],
+                    multi=True,
+                    placeholder="Select actor(s)",
+                ),
+                dbc.Modal([
+                    dbc.ModalHeader(dbc.ModalTitle("Selected Actors")),
+                    dbc.ModalBody(id="selected-actors-list"),
+                ], id="modal-actors", is_open=False),
+            ], width=3),
+
+            # --- Genre Filter ---
+            dbc.Col([
+                dbc.Row([
+                    dbc.Col(html.Label("Main Genres"), width="auto"),
+                     dbc.Col(
+                        [
+                            dbc.Button("Show Selected", id="show-selected-genres-btn", color="secondary", size="sm", className="me-2"),
+                            dbc.Button("Select All", id="select-all-genres", color="info", size="sm"),
+                        ],
+                        width="auto",
+                        style={"textAlign": "right"}
+                    ),
+                ], justify="between", align="center", className="mb-1"),
+                dcc.Dropdown(
+                    id="genre-dropdown",
+                    options=[{"label": g, "value": g} for g in sorted(all_genres)],
+                    value=genre_value if genre_value else [],
+                    multi=True,
+                    placeholder="Select genre(s)",
+                ),
+                dbc.Modal([
+                    dbc.ModalHeader(dbc.ModalTitle("Selected Genres")),
+                    dbc.ModalBody(id="selected-genres-list"),
+                ], id="modal-genres", is_open=False),
+            ], width=3),
+
+            # --- Rating Slider ---
+            dbc.Col([
+                html.Label("Movie Rating"),
+                dcc.RangeSlider(
+                    id="rating-slider", min=0, max=5, step=0.5,
+                    marks={i / 2: str(i / 2) for i in range(0, 11)},
+                    value=rating_range if rating_range else [0, 5],
+                    tooltip={"placement": "bottom", "always_visible": False},
+                )
+            ], width=3)
+        ], className="mb-4 g-4"),
+
+        # --- NEW ROW: Year & Votes Slider ---
+        dbc.Row([
+            dbc.Col([
+                html.Label("Release Year"),
+                dcc.RangeSlider(
+                    id="year-slider",
+                    min=year_min, max=year_max, step=1,
+                    value=year_value,
+                    marks={str(y): str(y) for y in range(year_min, year_max + 1, max(1, (year_max - year_min) // 5 or 1))},
+                    tooltip={"placement": "bottom", "always_visible": False},
+                ),
+            ], width=6),
+            dbc.Col([
+                html.Label("Number of Votes"),
+                dcc.RangeSlider(
+                    id="votes-slider",
+                    min=votes_min, max=votes_max, step=max(1, (votes_max - votes_min) // 100),
+                    value=votes_value,
+                    marks={str(v): str(v) for v in range(votes_min, votes_max + 1, max(1, (votes_max - votes_min) // 5 or 1))},
+                    tooltip={"placement": "bottom", "always_visible": False},
+                ),
+            ], width=6),
+        ], className="mb-2"),
+    ], fluid=True)

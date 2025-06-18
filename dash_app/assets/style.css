@@ -1,3 +1,331 @@
+:root {
+  --md-bg: #212121;
+  --md-surface: #2A2A2A;
+  --md-primary: #7C4DFF;
+  --md-primary-accent: #651FFF;
+  --md-text: #FAFAFA;
+  --md-text-muted: #BDBDBD;
+  --md-disabled: #424242;
+  --md-border-radius: 10px;
+}
+
+body, .app-container {
+  background-color: var(--md-bg) !important;
+  color: var(--md-text) !important;
+  font-family: "Roboto", "Segoe UI", Arial, sans-serif;
+  min-height: 100vh;
+  margin: 1%;
+}
+
+.navbar, .navbar-dark.bg-dark, .navbar-dark {
+  width: 90vw !important;
+  max-width: 90vw !important;
+  min-width: 90vw !important;
+  margin: 0 auto !important;            /* Centers the navbar */
+  left: 0;
+  border-radius: 0 !important;
+  box-sizing: border-box;
+  padding-left: 0;
+  padding-right: 0;
+  display: flex !important;
+  justify-content: center !important;   /* Center navbar content horizontally */
+  align-items: center !important;       /* Center vertically */
+  background: var(--md-bg) !important;     /* Force same as body */
+  background-color: var(--md-bg) !important;
+  color: var(--md-text) !important;
+  /* box-shadow: 0 4px 24px #0005; */
+  border-radius: 0 !important;
+  border: none !important;
+}
+
+/* Center children container/content */
+.navbar > .container,
+.navbar > .dash-navbar-row,
+.navbar > .row {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;            /* Center children horizontally */
+  padding: 0 !important;
+  display: flex !important;
+  justify-content: center !important;   /* Center inner content */
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+}
+
+
+.card, .modal-content, .dash-bootstrap .card {
+  background-color: var(--md-surface) !important;
+  color: var(--md-text) !important;
+  border-radius: var(--md-border-radius);
+  border: none;
+  box-shadow: 0 2px 8px #0004;
+}
+
+.btn, .dbc-btn {
+  border-radius: var(--md-border-radius) !important;
+  font-weight: 500 !important;
+  background-color: var(--md-primary) !important;
+  color: var(--md-text) !important;
+  border: none !important;
+  box-shadow: 0 2px 8px #0003;
+  transition: background 0.2s;
+}
+
+.btn:hover, .dbc-btn:hover {
+  background-color: var(--md-primary-accent) !important;
+  color: var(--md-text) !important;
+}
+
+.btn-danger, .dbc-btn-danger {
+  background-color: #D32F2F !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+}
+
+.btn-secondary, .dbc-btn-secondary {
+  background-color: var(--md-disabled) !important;
+  color: var(--md-text-muted) !important;
+}
+
+.btn:active, .btn:focus {
+  outline: 2px solid var(--md-primary-accent);
+}
+
+.dcc-dropdown, .Select-control, .dbc-dropdown {
+  background-color: var(--md-surface) !important;
+  color: var(--md-text) !important;
+  border-radius: var(--md-border-radius) !important;
+  border: none !important;
+}
+
+input, .form-control, .dbc-input {
+  background-color: var(--md-surface) !important;
+  color: var(--md-text) !important;
+  border-radius: var(--md-border-radius);
+  border: none;
+}
+
+h1, h2, h3, h4, h5, h6, label {
+  color: var(--md-text) !important;
+  font-weight: 700;
+}
+
+::-webkit-scrollbar {
+  background: #181818;
+  width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--md-primary);
+  border-radius: 8px;
+}
+
+.btn-primary, .dbc-btn-primary {
+  background-color: var(--md-primary) !important;
+  color: var(--md-text) !important;
+  border: none !important;
+  box-shadow: 0 2px 8px #0003;
+}
+.btn-primary:hover, .dbc-btn-primary:hover,
+.btn-primary:active, .dbc-btn-primary:active {
+  background-color: var(--md-primary-accent) !important;
+}
+
+/* Secondary for neutral buttons */
+.btn-secondary, .dbc-btn-secondary {
+  background-color: var(--md-disabled) !important;
+  color: var(--md-text-muted) !important;
+  border: none !important;
+}
+
+
+/* Fix Dash dropdown input for dark theme with Material Design */
+.Select-control, .Select-control input, .Select-placeholder, .Select--single > .Select-control .Select-value, .Select-menu-outer, .VirtualizedSelectOption {
+  background-color: #232323 !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+  border: 1.5px solid #7C4DFF !important; /* Use your Material purple */
+  min-height: 40px !important;
+  box-shadow: none !important;
+  font-size: 1rem !important;
+}
+
+/* When open or focused */
+.Select.is-focused > .Select-control,
+.Select.is-open > .Select-control {
+  border-color: #b388ff !important; /* Lighter purple */
+  box-shadow: 0 0 0 2px #7C4DFF44 !important;
+}
+
+/* Dropdown menu style */
+.Select-menu-outer {
+  background-color: #232323 !important;
+  border: 1.5px solid #7C4DFF !important;
+  color: #fff !important;
+  border-radius: 0 0 10px 10px !important;
+  z-index: 10000 !important;
+}
+
+.VirtualizedSelectOption {
+  background: transparent !important;
+  color: #fff !important;
+  font-size: 1rem !important;
+  transition: background 0.15s;
+}
+.VirtualizedSelectOption.is-focused, .VirtualizedSelectOption:hover {
+  background: #7C4DFF33 !important; /* light purple hover */
+  color: #fff !important;
+}
+
+.Select-arrow-zone {
+  color: #fff !important;
+}
+
+/* Placeholder */
+.Select-placeholder {
+  color: #aaa !important;
+  opacity: 0.95;
+}
+
+.Select-noresults {
+  color: #eee !important;
+  background: #232323 !important;
+}
+
+.dbc-dropdown, .dropdown-menu {
+  background-color: #232323 !important;
+  color: #fff !important;
+  border: 1.5px solid #7C4DFF !important;
+  border-radius: 8px !important;
+}
+.dbc-dropdown-item, .dropdown-item {
+  background-color: #232323 !important;
+  color: #fff !important;
+}
+.dbc-dropdown-item:hover, .dropdown-item:hover {
+  background-color: #7C4DFF33 !important;
+  color: #fff !important;
+}
+
+/* Fix Dash dropdown input for dark theme with Material Design */
+.Select-control, .Select-control input, .Select-placeholder, .Select--single > .Select-control .Select-value, .Select-menu-outer, .VirtualizedSelectOption {
+  background-color: #232323 !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+  border: 1.5px solid #7C4DFF !important; /* Use your Material purple */
+  min-height: 40px !important;
+  box-shadow: none !important;
+  font-size: 1rem !important;
+}
+
+/* When open or focused */
+.Select.is-focused > .Select-control,
+.Select.is-open > .Select-control {
+  border-color: #b388ff !important; /* Lighter purple */
+  box-shadow: 0 0 0 2px #7C4DFF44 !important;
+}
+
+/* Dropdown menu style */
+.Select-menu-outer {
+  background-color: #232323 !important;
+  border: 1.5px solid #7C4DFF !important;
+  color: #fff !important;
+  border-radius: 0 0 10px 10px !important;
+  z-index: 10000 !important;
+}
+
+.VirtualizedSelectOption {
+  background: transparent !important;
+  color: #fff !important;
+  font-size: 1rem !important;
+  transition: background 0.15s;
+}
+.VirtualizedSelectOption.is-focused, .VirtualizedSelectOption:hover {
+  background: #7C4DFF33 !important; /* light purple hover */
+  color: #fff !important;
+}
+
+.Select-arrow-zone {
+  color: #fff !important;
+}
+
+/* Placeholder */
+.Select-placeholder {
+  color: #aaa !important;
+  opacity: 0.95;
+}
+
+.Select-noresults {
+  color: #eee !important;
+  background: #232323 !important;
+}
+
+.dbc-dropdown, .dropdown-menu {
+  background-color: #232323 !important;
+  color: #fff !important;
+  border: 1.5px solid #7C4DFF !important;
+  border-radius: 8px !important;
+}
+.dbc-dropdown-item, .dropdown-item {
+  background-color: #232323 !important;
+  color: #fff !important;
+}
+.dbc-dropdown-item:hover, .dropdown-item:hover {
+  background-color: #7C4DFF33 !important;
+  color: #fff !important;
+}
+
+/* Selected value in dropdown (the box before you open the menu) */
+.Select-value, .Select-value-label, .Select--single > .Select-control .Select-value {
+    color: #fff !important;            /* White text */
+    background: transparent !important;
+}
+
+/* For multi-select tags/chips */
+.Select--multi .Select-value {
+    background: #7C4DFF !important;    /* Material purple chip background */
+    color: #fff !important;            /* White text */
+    border-radius: 6px !important;
+    border: none !important;
+}
+
+.Select--multi .Select-value-icon {
+    color: #fff !important;
+    background: transparent !important;
+}
+/* Selected value in dropdown (the box before you open the menu) */
+.Select-value, .Select-value-label, .Select--single > .Select-control .Select-value {
+    color: #fff !important;            /* White text */
+    background: transparent !important;
+}
+
+/* For multi-select tags/chips */
+.Select--multi .Select-value {
+    background: #7C4DFF !important;    /* Material purple chip background */
+    color: #fff !important;            /* White text */
+    border-radius: 6px !important;
+    border: none !important;
+}
+
+.Select--multi .Select-value-icon {
+    color: #fff !important;
+    background: transparent !important;
+}
+
+
+
+/* .main-app-container { */
+    /* padding: 24px !important; */
+    /* Or, for more subtle: */
+    /* padding: 32px 40px 32px 40px; */
+    /* For a border radius effect: */
+    /* border-radius: 18px; */
+    /* background: #171d22;  */
+    /* min-height: 100vh;
+    box-sizing: border-box; */
+    /* margin: 1em; */
+/* } */
+
 /* WORKING PART KINDA */
 .Select-menu-outer, .css-11unzgr {
     max-height: 250px !important;
@@ -15,4 +343,36 @@
 .card-header:hover {
     background-color: #e9ecef;
     transition: background 0.2s;
+}
+
+.card-header, .dbc-card-header, .card-header:hover, .dbc-card-header:hover {
+    background: transparent !important;  /* Use the card background */
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: var(--md-border-radius) var(--md-border-radius) 0 0 !important;
+    color: var(--md-text) !important;
+    transition: background 0.18s;
+}
+
+.card-header .btn,
+.card-header .dbc-btn,
+.dbc-card-header .btn,
+.dbc-card-header .dbc-btn {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    color: var(--md-text) !important;
+    border-radius: var(--md-border-radius) var(--md-border-radius) 0 0 !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    text-align: left;
+    transition: background 0.18s;
+}
+
+.card-header .btn:hover,
+.card-header .dbc-btn:hover,
+.dbc-card-header .btn:hover,
+.dbc-card-header .dbc-btn:hover {
+    background: var(--md-primary) !important;   /* Purple hover! */
+    color: #fff !important;
 }
