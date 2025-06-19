@@ -4,12 +4,12 @@ import json
 import pandas as pd
 import dash_bootstrap_components as dbc
 from dash import dcc, html, ctx
-from common_functions import *
+from common_functions import get_column_unique_values, create_dynamic_radial_chart
 
 def load_data():
-    df_movies = pd.read_parquet("../data/1_movies_data_for_app.parquet")
-    df_users = pd.read_parquet("../data/1_all_users_stats_with_clusters.parquet")
-    df_ratings = pd.read_parquet("../data/1_ratings_data_filtered.parquet")
+    df_movies = pd.read_parquet("data/1_movies_data_for_app.parquet")
+    df_users = pd.read_parquet("data/1_all_users_stats_with_clusters.parquet")
+    df_ratings = pd.read_parquet("data/1_ratings_data_filtered.parquet")
     df_movies['popularity_score'] = (
         (df_movies['popularity_score'] - df_movies['popularity_score'].min()) /
         (df_movies['popularity_score'].max() - df_movies['popularity_score'].min())
@@ -19,23 +19,23 @@ def load_data():
     DEFAULT_USER_ID = list(users_for_app.keys())[0]
     
 
-    with open('../data/topic_words.json', 'r') as f:
+    with open('data/topic_words.json', 'r') as f:
         topic_dicts = json.load(f)
         topic_words = {int(k): v for k, v in topic_dicts['overview_topic_words'].items()}
         tag_topic_words = {int(k): v for k, v in topic_dicts['tag_topic_words'].items()}
         keywords_topic_words = {int(k): v for k, v in topic_dicts['keywords_topic_words'].items()}
 
     all_genres_from_list = set(g for genres in df_movies['genre_list'] for g in genres)
-    all_genres_from_main = set(df_movies['main_genre'].dropna().unique())
+    all_genres_from_main = set(get_column_unique_values(df_movies, "main_genre"))
     all_genres = all_genres_from_list | all_genres_from_main
     genre2id = {genre: idx for idx, genre in enumerate(sorted(all_genres))}
     id2genre = {idx: genre for genre, idx in genre2id.items()}
 
-    all_directors = df_movies['director'].dropna().unique()
+    all_directors = get_column_unique_values(df_movies, "director")
     director2id = {director: idx for idx, director in enumerate(sorted(all_directors))}
     id2director = {idx: director for idx, director in director2id.items()}
 
-    all_actors = df_movies['lead_actor'].dropna().unique()
+    all_actors = get_column_unique_values(df_movies, "lead_actor")
     actor2id = {actor: idx for idx, actor in enumerate(sorted(all_actors))}
     id2actor = {idx: actor for actor, idx in actor2id.items()}
 
@@ -176,7 +176,7 @@ def build_kpi_section(
                     title="",
                     showlegend=False,
                     fill="toself",
-                    color="#7C4DFF",
+                    color="#1976d2",
                     selected_categories=top3_genres_global,
                     range_min=0
                 ),
@@ -198,7 +198,7 @@ def build_kpi_section(
                     title="",
                     showlegend=False,
                     fill="toself",
-                    color="#7C4DFF",
+                    color="#1976d2",
                     selected_categories=top3_genres_global_f,
                     range_min=0
                 ),
@@ -220,7 +220,7 @@ def build_kpi_section(
                     title="",
                     showlegend=False,
                     fill="toself",
-                    color="#7C4DFF",
+                    color="#1976d2",
                     selected_categories=top3_genres_user,
                     range_min=0
                 ),
@@ -242,7 +242,7 @@ def build_kpi_section(
                     title="",
                     showlegend=False,
                     fill="toself",
-                    color="#7C4DFF",
+                    color="#1976d2",
                     selected_categories=top3_genres_user_f,
                     range_min=0
                 ),

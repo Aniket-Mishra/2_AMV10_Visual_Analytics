@@ -1,9 +1,9 @@
 import dash
 from dash import dcc, html, Input, Output, State, ctx, no_update, ALL, callback_context, ctx
 import dash_bootstrap_components as dbc
+import re
 from functions import *
 from common_functions import *
-import re
 
 def parse_explanation(exp):
     genre = users = acclaimed = themes = ""
@@ -109,17 +109,17 @@ app.layout = html.Div(className="main-app-container",
                             html.Div(id="header-div"),
 
                             build_filters(
-                                all_directors=df_movies['director'].dropna().unique(),
-                                all_actors=df_movies['lead_actor'].dropna().unique(),
-                                all_genres=df_movies['main_genre'].dropna().unique(),
+                                all_directors=get_column_unique_values(df_movies, 'director'),
+                                all_actors=get_column_unique_values(df_movies, 'lead_actor'),
+                                all_genres=get_column_unique_values(df_movies, 'main_genre'),
                                 director_value=None,
                                 actor_value=None,
                                 genre_value=None,
                                 rating_range=[0,5],
-                                year_range=(year_min, year_max),        # <-- CHANGED
-                                year_value=[year_min, year_max],        # <-- CHANGED
-                                votes_range=(votes_min, votes_max),     # <-- CHANGED
-                                votes_value=[votes_min, votes_max],     # <-- CHANGED
+                                year_range=(year_min, year_max),
+                                year_value=[year_min, year_max],
+                                votes_range=(votes_min, votes_max),
+                                votes_value=[votes_min, votes_max],
                             ),
                             html.Div(id="kpi-div"),
                             html.Div([
@@ -141,14 +141,14 @@ app.layout = html.Div(className="main-app-container",
     Input("actor-dropdown", "value"),
     Input("genre-dropdown", "value"),
     Input("rating-slider", "value"),
-    Input("year-slider", "value"),             # <-- CHANGED
-    Input("votes-slider", "value"),            # <-- CHANGED
+    Input("year-slider", "value"),
+    Input("votes-slider", "value"),
     Input("show-kpi-details", "data"),
 )
 def render_app(
     selected_page, selected_user,
     director_values, actor_values, genre_values, rating_range,
-    year_range, votes_range, show_kpi_details                 # <-- CHANGED
+    year_range, votes_range, show_kpi_details
 ):
     # Start with all movies
     filtered_df_movies = df_movies.copy()
@@ -242,19 +242,23 @@ def update_user(user_id, n_reset_app, current_user):
     return current_user, no_update
 
 
-
+# Updating the dropdown and slider values based on selected movies, reset button and brushing
 @app.callback(
     Output("director-dropdown", "value"),
     Output("actor-dropdown", "value"),
     Output("genre-dropdown", "value"),
     Output("rating-slider", "value"),
-    Output("year-slider", "value"),      # <-- CHANGED
-    Output("votes-slider", "value"),     # <-- CHANGED
+    Output("year-slider", "value"),
+    Output("votes-slider", "value"),
     Input("btn-reset-filters", "n_clicks"),
     Input("btn-reset-app", "n_clicks"),
     Input("select-all-directors", "n_clicks"),
     Input("select-all-actors", "n_clicks"),
     Input("select-all-genres", "n_clicks"),
+    Input('graph_directors', 'selectedData'),
+    Input('graph_actors', 'selectedData'),
+    Input('graph_directors', 'clickData'),
+    Input('graph_actors', 'clickData'),
     State("director-dropdown", "options"),
     State("actor-dropdown", "options"),
     State("genre-dropdown", "options"),
@@ -262,28 +266,60 @@ def update_user(user_id, n_reset_app, current_user):
     State("year-slider", "max"),
     State("votes-slider", "min"),
     State("votes-slider", "max"),
+    State("director-dropdown", "value"),
+    State("actor-dropdown", "value"),
+    State("genre-dropdown", "value"),
     prevent_initial_call=True
 )
 def handle_dropdowns(
     reset_filters_click, reset_app_click,
     select_all_directors_click, select_all_actors_click, select_all_genres_click,
-    director_options, actor_options, genre_options,
-    year_min_slider, year_max_slider, votes_min_slider, votes_max_slider      # <-- CHANGED
+    select_directors, select_actors, click_director, click_actor, director_options, actor_options, genre_options,
+    year_min_slider, year_max_slider, votes_min_slider, votes_max_slider,
+    current_directors, current_actors, current_genres
 ):
     trigger = ctx.triggered_id
 
+    # Default values
+    current_directors = current_directors or []
+    current_actors = current_actors or []
+
     if trigger in ("btn-reset-filters", "btn-reset-app"):
-        return [], [], [], [0, 5], [year_min_slider, year_max_slider], [votes_min_slider, votes_max_slider]   # <-- CHANGED
-    if trigger == "select-all-directors":
-        return [opt["value"] for opt in director_options], no_update, no_update, no_update, no_update, no_update
-    if trigger == "select-all-actors":
-        return no_update, [opt["value"] for opt in actor_options], no_update, no_update, no_update, no_update
-    if trigger == "select-all-genres":
-        return no_update, no_update, [opt["value"] for opt in genre_options], no_update, no_update, no_update
-    return no_update, no_update, no_update, no_update, no_update, no_update   # <-- CHANGED
+        return [], [], [], [0, 5], [year_min_slider, year_max_slider], [votes_min_slider, votes_max_slider]
+    elif trigger == "select-all-directors":
+        return [opt["value"] for opt in director_options], dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    elif trigger == "select-all-actors":
+        return dash.no_update, [opt["value"] for opt in actor_options], dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    elif trigger == "select-all-genres":
+        return dash.no_update, dash.no_update, [opt["value"] for opt in genre_options], dash.no_update, dash.no_update, dash.no_update
+    
+    # Implement brushing for the bar charts
+    # Get all directors from the selected data
+    if trigger == 'graph_directors' and select_directors:
+        selected_directors = [point['x'] for point in select_directors['points']]
+        current_directors = current_directors + selected_directors
+        return current_directors, current_actors, current_genres, dash.no_update, dash.no_update, dash.no_update
+    # Get single director from the clicked bar
+    elif trigger == 'graph_directors' and click_director:
+        clicked_director = click_director['points'][0]['x']
+        if clicked_director not in current_directors:
+            current_directors = current_directors + [clicked_director]
+        return current_directors, current_actors, current_genres, dash.no_update, dash.no_update, dash.no_update
+    # Get all lead actors from the selected data
+    elif trigger == 'graph_actors' and select_actors:
+        selected_actors = [point['x'] for point in select_actors['points']]
+        current_actors = current_actors + selected_actors
+        return current_directors, current_actors, current_genres, dash.no_update, dash.no_update, dash.no_update
+    # Get single lead actor from the clicked bar
+    elif trigger == 'graph_actors' and click_actor:
+        clicked_actor = click_actor['points'][0]['x']
+        if clicked_actor not in current_actors:
+            current_actors = current_actors + [clicked_actor]
+        return current_directors, current_actors, current_genres, dash.no_update, dash.no_update, dash.no_update
 
+    return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
-
+# --- Director Modal ---
 @app.callback(
     Output("modal-directors", "is_open"),
     Output("selected-directors-list", "children"),
@@ -301,7 +337,7 @@ def toggle_director_modal(show_clicks, is_open, selected):
         else:
             return True, html.Div("No directors selected.")
     # Closing modal
-    return False, no_update
+    return False, dash.no_update
 
 # --- Actor Modal ---
 @app.callback(
@@ -319,7 +355,7 @@ def toggle_actor_modal(show_clicks, is_open, selected):
             return True, html.Ul([html.Li(str(item)) for item in selected])
         else:
             return True, html.Div("No actors selected.")
-    return False, no_update
+    return False, dash.no_update
 
 # --- Genre Modal ---
 @app.callback(
@@ -337,7 +373,7 @@ def toggle_genre_modal(show_clicks, is_open, selected):
             return True, html.Ul([html.Li(str(item)) for item in selected])
         else:
             return True, html.Div("No genres selected.")
-    return False, no_update
+    return False, dash.no_update
 
 @app.callback(
     Output("show-kpi-details", "data"),
@@ -364,14 +400,9 @@ def toggle_kpi_details(n_clicks, currently_open):
      Input("genre-dropdown", "value"),
      Input("rating-slider", "value"),
      Input("year-slider", "value"),
-     Input("votes-slider", "value"),
-     Input("genres-selected-store", "data"),
-     Input("directors-selected-store", "data"),
-     Input("actors-selected-store", "data"),
-     Input("movies-selected-store", "data")]
+     Input("votes-slider", "value")]
 )
-def update_movies_graphs(page, directors, actors, genres, rating_range, year_range, vote_count_range,
-                         genres_selected, directors_selected, actors_selected, movies_selected):
+def update_movies_graphs(page, directors, actors, genres, rating_range, year_range, vote_count_range):
     if page != "movies":
         return [go.Figure()] * 4 #5  # Empty figs if not movies page
 
@@ -383,7 +414,10 @@ def update_movies_graphs(page, directors, actors, genres, rating_range, year_ran
         df_filtered = df_filtered[df_filtered['lead_actor'].isin(actors)]
     if genres:
         df_filtered = df_filtered[df_filtered['main_genre'].isin(genres)]
+
     min_rating, max_rating = (0, 5)
+
+    # Ratings
     if rating_range and len(rating_range) == 2:
         min_rating, max_rating = rating_range
         df_filtered = df_filtered[
@@ -391,6 +425,8 @@ def update_movies_graphs(page, directors, actors, genres, rating_range, year_ran
             (df_filtered['vote_average'] <= max_rating)
         ]
     min_year, max_year = (year_min, year_max)
+
+    # Year range
     if year_range and len(year_range) == 2:
         min_year, max_year = year_range
         df_filtered = df_filtered[
@@ -398,6 +434,8 @@ def update_movies_graphs(page, directors, actors, genres, rating_range, year_ran
             (df_filtered['release_year'] <= max_year)
         ]
     min_votes, max_votes = (votes_min, votes_max)
+
+    # Vote count
     if vote_count_range and len(vote_count_range) == 2:
         min_votes, max_votes = vote_count_range
         df_filtered = df_filtered[
@@ -405,66 +443,30 @@ def update_movies_graphs(page, directors, actors, genres, rating_range, year_ran
             (df_filtered['vote_count'] <= max_votes)
         ]
 
-    # 1. Genres brushed
-    brushed_genres = get_selected_points(genres_selected, key1="label", key2="x")
-    if brushed_genres:
-        df_filtered = df_filtered[df_filtered["main_genre"].isin(brushed_genres)]
-
-    brushed_directors = get_selected_points(directors_selected, key1="x", key2="label")
-    if brushed_directors:
-        df_filtered = df_filtered[df_filtered["director"].isin(brushed_directors)]
-
-    brushed_actors = get_selected_points(actors_selected, key1="x", key2="label")
-    if brushed_actors:
-        df_filtered = df_filtered[df_filtered["lead_actor"].isin(brushed_actors)]
-
-    brushed_movies = get_selected_points(movies_selected, key1="x", key2="label")
-    if brushed_movies:
-        df_filtered = df_filtered[df_filtered["title"].isin(brushed_movies)]
-
-    # Graphs
+    # Create special dataframes to use for the plots
     genre_avg = get_grouped_mean(df_filtered, "main_genre", "vote_average")
     df_genre_avg = genre_avg.reset_index()
 
     director_avg = get_grouped_mean(df_filtered, "director", "vote_average")
     df_director_avg = director_avg.nlargest(10).reset_index()
-    director_pop = get_grouped_mean(df_filtered, "director", "director_popularity")
-    # df_director_pop = director_pop.nlargest(10).reset_index()
+    director_pop = get_grouped_mean(df_filtered, "director", "director_popularity") 
     df_director_pop = director_pop.reset_index().sort_values("director_popularity", ascending=False).head(10)
 
     actor_avg = get_grouped_mean(df_filtered, "lead_actor", "vote_average")
     df_actor_avg = actor_avg.nlargest(10).reset_index()
     actor_pop = get_grouped_mean(df_filtered, "lead_actor", "lead_actor_popularity")
-    # df_actor_pop = actor_pop.nlargest(10).reset_index()
     df_actor_pop = actor_pop.reset_index().sort_values("lead_actor_popularity", ascending=False).head(10)
 
     df_movie_avg = df_filtered.sort_values(by="vote_average", ascending=False).head(10)
-    # df_movie_pop = df_filtered.sort_values(by="popularity", ascending=False).head(10)
     df_movie_pop = df_filtered.sort_values("popularity", ascending=True).tail(10)
 
-    # fig_genres = create_bar_chart(
-    #     df=df_genre_avg,
-    #     x_column="main_genre",
-    #     y_column="vote_average",
-    #     title="Average Movie Rating by Genre",
-    #     x_axis_title="Main Genre",
-    #     y_axis_title="Average Rating",
-    #     sort_by_y=True
-    # )
+    # Create figures, dynamic treemap and bar charts
     fig_genres = create_dynamic_treemap(
         df_filtered,
         "main_genre",
         title="Number of Movies by Genre"
     )
-    # fig_directors = create_bar_chart(
-    #     df=df_director_avg,
-    #     x_column="director",
-    #     y_column="vote_average",
-    #     title="Top 10 Directors by Average Rating",
-    #     x_axis_title="Director",
-    #     y_axis_title="Average Rating",
-    #     sort_by_y=True
-    # )
+
     fig_directors = create_bar_chart(
         df=df_director_pop,
         x_column="director",
@@ -474,15 +476,7 @@ def update_movies_graphs(page, directors, actors, genres, rating_range, year_ran
         y_axis_title="Average Popularity",
         sort_by_y=True
     )
-    # fig_actors = create_bar_chart(
-    #     df=df_actor_avg,
-    #     x_column="lead_actor",
-    #     y_column="vote_average",
-    #     title="Top 10 Lead Actors by Average Rating",
-    #     x_axis_title="Lead Actor",
-    #     y_axis_title="Average Rating",
-    #     sort_by_y=True
-    # )
+
     fig_actors = create_bar_chart(
         df=df_actor_pop,
         x_column="lead_actor",
@@ -492,15 +486,7 @@ def update_movies_graphs(page, directors, actors, genres, rating_range, year_ran
         y_axis_title="Average Popularity",
         sort_by_y=True
     )
-    # fig_movies = create_bar_chart(
-    #     df=df_movie_avg,
-    #     x_column="title",
-    #     y_column="vote_average",
-    #     title="Top 10 Movies by Average Rating",
-    #     x_axis_title="Movie Title",
-    #     y_axis_title="Average Rating",
-    #     sort_by_y=True
-    # )
+
     fig_movies = create_bar_chart(
         df=df_movie_pop,
         x_column="title",
@@ -511,18 +497,11 @@ def update_movies_graphs(page, directors, actors, genres, rating_range, year_ran
         sort_by_y=True
     )
 
-    # fig_radial = create_dynamic_radial_chart(
-    #     df_filtered,
-    #     category_col="main_genre",         # or any other col
-    #     value_col="vote_count",      # or any other numeric col
-    #     agg_func="mean",
-    #     title="Most watched Genres (Radial Chart)"
-    # )
     fig_genres.update_layout(uirevision="movies-page")
     fig_directors.update_layout(uirevision="movies-page")
     fig_actors.update_layout(uirevision="movies-page")
     fig_movies.update_layout(uirevision="movies-page")
-    return fig_genres, fig_directors, fig_actors, fig_movies, #fig_radial
+    return fig_genres, fig_directors, fig_actors, fig_movies
 
 
 @app.callback(
@@ -614,6 +593,7 @@ def generate_recommendations(page, selected_user,
 
     df_plot = get_plot_df(df_ratings, df_filtered, user_id, filtered_pool, recs)
 
+    # Create all the different figures: cluster, recs and watched
     fig_cluster = create_cluster_scatter_plot(
         df=df_filtered,
         x='pca_1',
@@ -622,7 +602,7 @@ def generate_recommendations(page, selected_user,
         title='Movie Clusters in PCA Space'
     )
 
-    fig_recs = create_recomended_scatter_plot(
+    fig_recs = create_recommended_scatter_plot(
         df = df_plot,
         x='pca_1', 
         y='pca_2',
@@ -640,11 +620,9 @@ def generate_recommendations(page, selected_user,
         title='Watched vs Recommended: Rating per Genre'
     )
 
-    # recommendations_card = html.Pre("\n".join([f"Recommended: {rec['title']}\nWhy: {rec['explanation']}\n" for rec in recs]))
     recommendations_card = make_recommendations_table(recs)
 
     return fig_cluster, fig_recs, fig_watched, recommendations_card
-
 
 @app.callback(
     Output("movies-graphs-div", "style"),
@@ -665,28 +643,5 @@ def show_correct_page(current_page):
 def update_header(current_page, selected_user):
     return build_header(users_for_app, current_page, selected_user)
 
-@app.callback(
-    Output("genres-selected-store", "data"),
-    Output("directors-selected-store", "data"),
-    Output("actors-selected-store", "data"),
-    Output("movies-selected-store", "data"),
-    Input("graph_genres", "selectedData"),
-    Input("graph_directors", "selectedData"),
-    Input("graph_actors", "selectedData"),
-    Input("graph_movies", "selectedData"),
-    Input("clear-selections-btn", "n_clicks"),
-    prevent_initial_call=True
-)
-def update_selected_stores(genres_sel, directors_sel, actors_sel, movies_sel, clear_n):
-    # Identify the trigger
-    trigger = ctx.triggered_id
-
-    # If "Clear Graph Selections" pressed, reset all stores
-    if trigger == "clear-selections-btn":
-        return None, None, None, None
-
-    # Otherwise, update only the relevant selection
-    return genres_sel, directors_sel, actors_sel, movies_sel
-
 if __name__ == "__main__":
-    app.run_server(debug=True, port=8801)
+    app.run(debug=True, port=8801)

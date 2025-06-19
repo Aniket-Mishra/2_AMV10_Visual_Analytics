@@ -1,4 +1,4 @@
 *.parquet
 *.json
 *.csv
-*pyc
+*.pyc
