@@ -9,7 +9,7 @@ This application was built using the Python Dash library
 
 ### How to run
 
-In order to use the application, navigate to the `dash_app` directory. Within this directory, simply run `app.py` and click on the link that appears in the terminal. This will open the dashboard in the webbrowser. 
+In order to use the application, navigate to the `dash_app` directory. Within this directory, simply run `python "app.py"` and click on the link that appears in the terminal. This will open the dashboard in the webbrowser. 
 
 ### Data
 

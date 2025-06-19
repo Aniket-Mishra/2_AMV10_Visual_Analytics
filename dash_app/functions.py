@@ -7,9 +7,9 @@ from dash import dcc, html, ctx
 from common_functions import get_column_unique_values, create_dynamic_radial_chart
 
 def load_data():
-    df_movies = pd.read_parquet("data/1_movies_data_for_app.parquet")
-    df_users = pd.read_parquet("data/1_all_users_stats_with_clusters.parquet")
-    df_ratings = pd.read_parquet("data/1_ratings_data_filtered.parquet")
+    df_movies = pd.read_parquet("../data/1_movies_data_for_app.parquet")
+    df_users = pd.read_parquet("../data/1_all_users_stats_with_clusters.parquet")
+    df_ratings = pd.read_parquet("../data/1_ratings_data_filtered.parquet")
     df_movies['popularity_score'] = (
         (df_movies['popularity_score'] - df_movies['popularity_score'].min()) /
         (df_movies['popularity_score'].max() - df_movies['popularity_score'].min())
@@ -19,7 +19,7 @@ def load_data():
     DEFAULT_USER_ID = list(users_for_app.keys())[0]
     
 
-    with open('data/topic_words.json', 'r') as f:
+    with open('../data/topic_words.json', 'r') as f:
         topic_dicts = json.load(f)
         topic_words = {int(k): v for k, v in topic_dicts['overview_topic_words'].items()}
         tag_topic_words = {int(k): v for k, v in topic_dicts['tag_topic_words'].items()}

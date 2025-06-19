@@ -644,4 +644,4 @@ def update_header(current_page, selected_user):
     return build_header(users_for_app, current_page, selected_user)
 
 if __name__ == "__main__":
-    app.run(debug=True, port=8801)
+    app.run(debug=False, port=8801)
