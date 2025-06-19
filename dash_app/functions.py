@@ -176,7 +176,7 @@ def build_kpi_section(
                     title="",
                     showlegend=False,
                     fill="toself",
-                    color="#1976d2",
+                    color="#7C4DFF",
                     selected_categories=top3_genres_global,
                     range_min=0
                 ),
@@ -198,7 +198,7 @@ def build_kpi_section(
                     title="",
                     showlegend=False,
                     fill="toself",
-                    color="#1976d2",
+                    color="#7C4DFF",
                     selected_categories=top3_genres_global_f,
                     range_min=0
                 ),
@@ -220,7 +220,7 @@ def build_kpi_section(
                     title="",
                     showlegend=False,
                     fill="toself",
-                    color="#1976d2",
+                    color="#7C4DFF",
                     selected_categories=top3_genres_user,
                     range_min=0
                 ),
@@ -242,7 +242,7 @@ def build_kpi_section(
                     title="",
                     showlegend=False,
                     fill="toself",
-                    color="#1976d2",
+                    color="#7C4DFF",
                     selected_categories=top3_genres_user_f,
                     range_min=0
                 ),
