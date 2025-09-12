@@ -3,8 +3,8 @@
 
 Created by Aniket Mishra (2079259) and Rose van Mierlo (1560158)
 
-An extensive tool used to recommend movies! 
-This application was built using the Python Dash library
+An extensive tool used to recommend movies and explain why they were recommended. The explanations were performed using similarity indexes, PCA, and a myriad of other methods.
+This application was built using Python and the Plotly Dash library. The recommendations were made using multiple NLP techniques like TF-IDF, and other encoding/decoding methodologies and calculating importance, and finally, by calculating scores for each required feature. The recommendation analytics were performed using similarity and TF-IDF analysis, along with PCA.
 
 
 ### How to run
